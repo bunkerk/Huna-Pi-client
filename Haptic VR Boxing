@@ -1,1 +1,60 @@
-1
+import board
+import busio
+import adafruit_bno055
+import time
+import socket
+import math
+
+i2c = busio.I2C(board.SCL, board.SDA)
+sensor = adafruit_bno055.BNO055(i2c)
+host= "192.168.1.4"
+port= 1234
+
+#these are the last values that were sent
+
+roll = sensor.euler[2]
+pitch = sensor.euler[1]
+yaw = sensor.euler[0]
+coliision='F'
+punch = 'F'
+
+while abs(roll)> 360 or abs(pitch) >360 or abs(yaw)>360:
+        roll = sensor.euler[2]
+        pitch = sensor.euler[1]
+        yaw = sensor.euler[0]
+
+dth = 10
+
+while True:
+        #current values
+        cy = sensor.euler[0]
+        cp = sensor.euler[1]
+        cr = sensor.euler[2]
+        ax = sensor.accelerometer[0]
+        ay = sensor.accelerometer[1]
+        az = sensor.accelerometer[2]
+        ca = math.sqrt(ax*ax+ay*ay+az*az)
+        #print(ca)
+        
+        if abs(cr) <360 and abs(cp) <360 and abs(cy)<360:
+                if abs(cr-roll) > dth or abs(cp-pitch)>dth or abs(cy-yaw) > dth or abs(ca-10)>0.6:
+                        if (ca-10)>0.6:
+                                punch = 'T'
+                        else:
+                                punch = 'F'
+                        print("yaw, pitch, roll", cy, cp, cr)
+                        roll = cr
+                        pitch = cp
+                        yaw = cy
+                        s= socket.socket()
+                        s.connect((host,port))
+                        msg= str(roll)+":"+str(pitch)+":"+str(yaw)+":"+ str(punch)
+                        collision = (s.recv(1024)).decode('utf-8')
+                        s.send(msg.encode('utf-8'))
+                        s.close()
+        time.sleep(0.5)
+
+#while True:
+    #print('Euler angle: {}'.format(sensor.euler))
+    #print('Accelerometer (m/s^2):[]'.format(sensor.accelerometer))
+    #time.sleep(1)
